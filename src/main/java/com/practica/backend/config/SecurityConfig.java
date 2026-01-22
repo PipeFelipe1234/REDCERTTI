@@ -5,7 +5,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.http.SessionCreationPolicy;
+
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
@@ -16,32 +16,28 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
         http
+                // Deshabilitar CSRF (API REST)
                 .csrf(csrf -> csrf.disable())
 
-                // 🔥 CLAVE ABSOLUTA
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-
+                // Configuración de autorización
                 .authorizeHttpRequests(auth -> auth
 
                         // PUBLICOS
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/usuarios").permitAll()
 
-                        // ADMIN – gestionar usuarios
-                        .requestMatchers(HttpMethod.GET, "/api/usuarios/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/usuarios/**").hasRole("ADMIN")
-
-                        // USER
-                        .requestMatchers("/api/registros/mis-registros").hasRole("USER")
-                        .requestMatchers("/api/registros/entrada").hasRole("USER")
-                        .requestMatchers("/api/registros/salida").hasRole("USER")
+                        // USUARIOS AUTENTICADOS
+                        .requestMatchers(HttpMethod.PUT, "/api/usuarios/**").authenticated()
 
                         // ADMIN
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
                         .anyRequest().authenticated())
 
-                .addFilterBefore(new JwtFilter(), UsernamePasswordAuthenticationFilter.class);
+                // Filtro JWT antes del login de Spring Security
+                .addFilterBefore(
+                        new JwtFilter(),
+                        UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
