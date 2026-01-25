@@ -13,9 +13,10 @@ public class JwtUtil {
 
     private static final Key key = Keys.hmacShaKeyFor(SECRET.getBytes());
 
-    public static String generarToken(String identificacion) {
+    public static String generarToken(String identificacion, String rol) {
         return Jwts.builder()
                 .setSubject(identificacion)
+                .claim("rol", rol)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION))
                 .signWith(key, SignatureAlgorithm.HS256)
@@ -31,22 +32,16 @@ public class JwtUtil {
                 .getSubject();
     }
 
-    public static String generarToken(String identificacion, String rol) {
-        return Jwts.builder()
-                .setSubject(identificacion)
-                .claim("rol", rol) // 👈 nuevo
-                .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION))
-                .signWith(key, SignatureAlgorithm.HS256)
-                .compact();
-    }
-
     public static String extraerRol(String token) {
-        return Jwts.parserBuilder()
-                .setSigningKey(key)
-                .build()
-                .parseClaimsJws(token)
-                .getBody()
-                .get("rol", String.class);
+        try {
+            return Jwts.parserBuilder()
+                    .setSigningKey(key)
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody()
+                    .get("rol", String.class);
+        } catch (Exception e) {
+            return null;
+        }
     }
 }

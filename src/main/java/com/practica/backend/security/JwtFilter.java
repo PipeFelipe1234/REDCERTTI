@@ -8,6 +8,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import java.util.ArrayList;
 import java.util.List;
 import java.io.IOException;
 
@@ -29,14 +30,21 @@ public class JwtFilter extends OncePerRequestFilter {
                 String identificacion = JwtUtil.extraerIdentificacion(token);
                 String rol = JwtUtil.extraerRol(token);
 
+                // Crear lista de autoridades
+                List<SimpleGrantedAuthority> autoridades = new ArrayList<>();
+                if (rol != null && !rol.isEmpty()) {
+                    autoridades.add(new SimpleGrantedAuthority("ROLE_" + rol));
+                }
+
                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                         identificacion,
                         null,
-                        List.of(new SimpleGrantedAuthority("ROLE_" + rol)));
+                        autoridades);
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
 
             } catch (Exception e) {
+                // Token inválido o expirado
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 return;
             }
