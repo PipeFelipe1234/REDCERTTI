@@ -6,4 +6,5 @@ public record MarcarSalidaRequest(
                 Double precisionMetros,
                 String reporte,
                 String picture) {
+
 }
