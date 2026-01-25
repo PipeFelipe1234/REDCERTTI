@@ -12,5 +12,7 @@ public interface RegistroRepository extends JpaRepository<Registro, Long> {
 
     Optional<Registro> findByUsuarioAndFecha(Usuario usuario, LocalDate fecha);
 
+    Optional<Registro> findByUsuarioAndFechaAndHoraSalidaIsNull(Usuario usuario, LocalDate fecha);
+
     List<Registro> findAllByUsuario(Usuario usuario);
 }

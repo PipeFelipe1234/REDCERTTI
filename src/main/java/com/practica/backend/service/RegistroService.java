@@ -48,13 +48,8 @@ public class RegistroService {
             MarcarSalidaRequest request) {
 
         Registro registro = registroRepository
-                .findByUsuarioAndFecha(usuario, LocalDate.now())
-                .orElseThrow(() -> new RuntimeException("No hay entrada registrada para hoy"));
-
-        // Validar que tenga entrada sin salida
-        if (registro.getHoraSalida() != null) {
-            throw new RuntimeException("Ya marcó salida para este registro");
-        }
+                .findByUsuarioAndFechaAndHoraSalidaIsNull(usuario, LocalDate.now())
+                .orElseThrow(() -> new RuntimeException("No hay entrada sin salida registrada para hoy"));
 
         // Validar precisión GPS
         if (request.precisionMetros() != null && request.precisionMetros() > 50) {
