@@ -97,6 +97,7 @@ public class RegistroService {
                 r.getPrecisionMetrosCheckin(),
                 r.getReporte(),
                 r.getPicture(),
-                r.getUsuario().getIdentificacion());
+                r.getUsuario().getIdentificacion(),
+                r.getUsuario().getNombre());
     }
 }
