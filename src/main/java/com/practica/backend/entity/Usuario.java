@@ -26,13 +26,13 @@ public class Usuario {
     private String foto;
 
     @Column
-    private Integer telefono;
+    private String telefono;
 
     public Usuario() {
     }
 
     public Usuario(Long id, String identificacion, String nombre, String email, String rol, String foto,
-            Integer telefono) {
+            String telefono) {
         this.id = id;
         this.identificacion = identificacion;
         this.nombre = nombre;
@@ -90,11 +90,11 @@ public class Usuario {
         this.foto = foto;
     }
 
-    public Integer getTelefono() {
+    public String getTelefono() {
         return telefono;
     }
 
-    public void setTelefono(Integer telefono) {
+    public void setTelefono(String telefono) {
         this.telefono = telefono;
     }
 }
