@@ -23,49 +23,35 @@ public class JwtFilter extends OncePerRequestFilter {
         String authHeader = request.getHeader("Authorization");
         String requestUri = request.getRequestURI();
 
-        // Permitir acceso a login sin token
-        if (requestUri.contains("/api/auth/login")) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-
-        // Si tiene Authorization header, validar el token
+        // Si tiene Authorization header, intentar validar el token
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7);
 
             try {
                 // Validar que el token sea válido y no expirado
-                if (!JwtUtil.validarToken(token)) {
-                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                    return;
+                if (JwtUtil.validarToken(token)) {
+                    // Token válido - extraer información
+                    String identificacion = JwtUtil.extraerIdentificacion(token);
+                    String rol = JwtUtil.extraerRol(token);
+
+                    // Crear lista de autoridades
+                    List<SimpleGrantedAuthority> autoridades = new ArrayList<>();
+                    if (rol != null && !rol.isEmpty()) {
+                        autoridades.add(new SimpleGrantedAuthority("ROLE_" + rol));
+                    }
+
+                    UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                            identificacion,
+                            null,
+                            autoridades);
+
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
                 }
-
-                // Extraer información del token válido
-                String identificacion = JwtUtil.extraerIdentificacion(token);
-                String rol = JwtUtil.extraerRol(token);
-
-                // Crear lista de autoridades
-                List<SimpleGrantedAuthority> autoridades = new ArrayList<>();
-                if (rol != null && !rol.isEmpty()) {
-                    autoridades.add(new SimpleGrantedAuthority("ROLE_" + rol));
-                }
-
-                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                        identificacion,
-                        null,
-                        autoridades);
-
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-
+                // Si el token es inválido o expirado, simplemente no autentica
+                // Spring Security decidirá si requiere autenticación basado en la configuración
             } catch (Exception e) {
-                // Token inválido o error al procesarlo
-                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                return;
+                // Error al procesar token, no establecer autenticación
             }
-        } else {
-            // Sin token en endpoints que lo requieren
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            return;
         }
 
         filterChain.doFilter(request, response);

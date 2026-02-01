@@ -73,33 +73,6 @@ public class JwtUtil {
         }
     }
 
-    public static Claims extraerClaimsConToleranciaExpiracion(String token) {
-        try {
-            // Este método extrae los claims incluso si el token está expirado
-            // Pero valida que la firma sea correcta
-            return Jwts.parserBuilder()
-                    .setSigningKey(key)
-                    .build()
-                    .parseClaimsJwt(token)
-                    .getBody();
-        } catch (Exception e) {
-            // Si falla parseClaimsJwt, intentar con parseClaimsJws para mejor manejo de
-            // errores
-            try {
-                return Jwts.parserBuilder()
-                        .setSigningKey(key)
-                        .build()
-                        .parseClaimsJws(token)
-                        .getBody();
-            } catch (ExpiredJwtException e2) {
-                // Token expirado pero firma válida - extraer claims de la excepción
-                return e2.getClaims();
-            } catch (Exception e3) {
-                return null; // Token completamente inválido
-            }
-        }
-    }
-
     public static String refrescarToken(String token) {
         try {
             // Validar que el token sea válido y NO esté expirado
