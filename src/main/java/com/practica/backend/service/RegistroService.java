@@ -9,31 +9,58 @@ import com.practica.backend.repository.RegistroRepository;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Service
 public class RegistroService {
 
     private final RegistroRepository registroRepository;
+    private static final DateTimeFormatter ISO_FORMATTER = DateTimeFormatter.ISO_DATE_TIME;
 
     public RegistroService(RegistroRepository registroRepository) {
         this.registroRepository = registroRepository;
     }
 
+    /**
+     * Parsea una fecha ISO 8601 y retorna LocalDate y LocalTime
+     */
+    private LocalDateTime parseISODateTime(String iso8601) {
+        if (iso8601 == null || iso8601.trim().isEmpty()) {
+            return null;
+        }
+        try {
+            return LocalDateTime.parse(iso8601, ISO_FORMATTER);
+        } catch (Exception e) {
+            // Si falla el parsing, retorna null
+            return null;
+        }
+    }
+
     public RegistroResponse marcarEntrada(Usuario usuario, MarcarEntradaRequest request) {
 
         LocalDate hoy = LocalDate.now();
+        LocalTime horaActual = LocalTime.now();
 
         // Validar precisión GPS
         if (request.precisionMetrosCheckin() != null && request.precisionMetrosCheckin() > 50) {
             throw new RuntimeException("Precisión GPS insuficiente en entrada");
         }
 
+        // Si viene fechaCreacion, usarla; sino, usar la hora actual
+        LocalDateTime fechaHoraRegistro = parseISODateTime(request.fechaCreacion());
+
+        if (fechaHoraRegistro != null) {
+            hoy = fechaHoraRegistro.toLocalDate();
+            horaActual = fechaHoraRegistro.toLocalTime();
+        }
+
         Registro registro = new Registro();
         registro.setUsuario(usuario);
         registro.setFecha(hoy);
-        registro.setHoraEntrada(LocalTime.now());
+        registro.setHoraEntrada(horaActual);
         registro.setLatitudCheckin(request.latitudCheckin());
         registro.setLongitudCheckin(request.longitudCheckin());
         registro.setPrecisionMetrosCheckin(request.precisionMetrosCheckin());
@@ -47,8 +74,19 @@ public class RegistroService {
             Usuario usuario,
             MarcarSalidaRequest request) {
 
+        LocalDate hoy = LocalDate.now();
+        LocalTime horaActual = LocalTime.now();
+
+        // Si viene fechaCreacion, usarla para obtener la fecha correcta
+        LocalDateTime fechaHoraRegistro = parseISODateTime(request.fechaCreacion());
+
+        if (fechaHoraRegistro != null) {
+            hoy = fechaHoraRegistro.toLocalDate();
+            horaActual = fechaHoraRegistro.toLocalTime();
+        }
+
         Registro registro = registroRepository
-                .findByUsuarioAndFechaAndHoraSalidaIsNull(usuario, LocalDate.now())
+                .findByUsuarioAndFechaAndHoraSalidaIsNull(usuario, hoy)
                 .orElseThrow(() -> new RuntimeException("No hay entrada sin salida registrada para hoy"));
 
         // Validar precisión GPS
@@ -56,7 +94,7 @@ public class RegistroService {
             throw new RuntimeException("Precisión GPS insuficiente en salida");
         }
 
-        registro.setHoraSalida(LocalTime.now());
+        registro.setHoraSalida(horaActual);
         registro.setLatitud(request.latitud());
         registro.setLongitud(request.longitud());
         registro.setPrecisionMetros(request.precisionMetros());
