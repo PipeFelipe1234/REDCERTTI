@@ -25,12 +25,16 @@ public class JwtUtil {
     }
 
     public static String extraerIdentificacion(String token) {
-        return Jwts.parserBuilder()
-                .setSigningKey(key)
-                .build()
-                .parseClaimsJws(token)
-                .getBody()
-                .getSubject();
+        try {
+            return Jwts.parserBuilder()
+                    .setSigningKey(key)
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody()
+                    .getSubject();
+        } catch (ExpiredJwtException e) {
+            throw e;
+        }
     }
 
     public static String extraerRol(String token) {
@@ -58,4 +62,4 @@ public class JwtUtil {
             return null;
         }
     }
-}}}
+}

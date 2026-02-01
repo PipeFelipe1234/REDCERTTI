@@ -4,6 +4,8 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -23,28 +25,33 @@ public class JwtFilter extends OncePerRequestFilter {
         String authHeader = request.getHeader("Authorization");
 
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
-
             String token = authHeader.substring(7);
 
             try {
+                // Validar que el token no esté expirado primero
                 String identificacion = JwtUtil.extraerIdentificacion(token);
                 String rol = JwtUtil.extraerRol(token);
 
-                // Crear lista de autoridades
-                List<SimpleGrantedAuthority> autoridades = new ArrayList<>();
-                if (rol != null && !rol.isEmpty()) {
-                    autoridades.add(new SimpleGrantedAuthority("ROLE_" + rol));
+                if (identificacion != null) {
+                    // Crear lista de autoridades
+                    List<SimpleGrantedAuthority> autoridades = new ArrayList<>();
+                    if (rol != null && !rol.isEmpty()) {
+                        autoridades.add(new SimpleGrantedAuthority("ROLE_" + rol));
+                    }
+
+                    UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                            identificacion,
+                            null,
+                            autoridades);
+
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
                 }
-
-                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                        identificacion,
-                        null,
-                        autoridades);
-
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-
+            } catch (ExpiredJwtException e) {
+                System.out.println("Token expirado: " + e.getMessage());
+            } catch (JwtException e) {
+                System.out.println("Token JWT inválido: " + e.getMessage());
             } catch (Exception e) {
-                // Token inválido o expirado
+                System.out.println("Error procesando token: " + e.getMessage());
             }
         }
 
