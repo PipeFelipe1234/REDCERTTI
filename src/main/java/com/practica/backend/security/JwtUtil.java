@@ -62,4 +62,33 @@ public class JwtUtil {
             return null;
         }
     }
+
+    // Extrae claims de un token incluso si está expirado
+    public static Claims extraerClaimsIgnorandoExpiracion(String token) {
+        try {
+            return Jwts.parserBuilder()
+                    .setSigningKey(key)
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+        } catch (ExpiredJwtException e) {
+            // Si está expirado, extraemos los claims del error
+            return e.getClaims();
+        }
+    }
+
+    // Valida si un token es válido (no está expirado)
+    public static boolean esTokenValido(String token) {
+        try {
+            Jwts.parserBuilder()
+                    .setSigningKey(key)
+                    .build()
+                    .parseClaimsJws(token);
+            return true;
+        } catch (ExpiredJwtException e) {
+            return false; // Token expirado
+        } catch (Exception e) {
+            return false; // Token inválido
+        }
+    }
 }
