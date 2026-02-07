@@ -19,7 +19,7 @@ public class TokenDispositivo {
     private String token;
 
     @Column(nullable = false)
-    private String tipoDispositivo; // Android, iOS, Web
+    private String tipoDispositivo = "Android"; // Android, iOS, Web - valor por defecto
 
     @Column
     private String marca; // Samsung, iPhone, etc.
@@ -42,7 +42,7 @@ public class TokenDispositivo {
     public TokenDispositivo(Usuario usuario, String token, String tipoDispositivo, String marca, String modelo) {
         this.usuario = usuario;
         this.token = token;
-        this.tipoDispositivo = tipoDispositivo;
+        this.tipoDispositivo = (tipoDispositivo != null && !tipoDispositivo.isEmpty()) ? tipoDispositivo : "Android";
         this.marca = marca;
         this.modelo = modelo;
         this.fechaRegistro = LocalDateTime.now();

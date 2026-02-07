@@ -41,6 +41,9 @@ public class Registro {
     // 📷 Foto/URL de imagen
     private String picture;
 
+    // ⏱️ Horas trabajadas (en minutos, para mayor precisión)
+    private Long minutosTrabajados;
+
     public Registro() {
     }
 
@@ -165,5 +168,13 @@ public class Registro {
 
     public void setPicture(String picture) {
         this.picture = picture;
+    }
+
+    public Long getMinutosTrabajados() {
+        return minutosTrabajados;
+    }
+
+    public void setMinutosTrabajados(Long minutosTrabajados) {
+        this.minutosTrabajados = minutosTrabajados;
     }
 }

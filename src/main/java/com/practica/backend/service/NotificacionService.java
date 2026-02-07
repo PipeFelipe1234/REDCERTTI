@@ -147,17 +147,39 @@ public class NotificacionService {
     public void registrarTokenDispositivo(Usuario usuario, String token, String tipoDispositivo,
             String marca, String modelo) {
         try {
+            System.out.println("📱 Intentando registrar token FCM para usuario: " + usuario.getNombre() + " (Rol: "
+                    + usuario.getRol() + ")");
+            System.out.println(
+                    "   Token: " + (token != null ? token.substring(0, Math.min(30, token.length())) + "..." : "NULL"));
+            System.out.println("   Tipo: " + tipoDispositivo + ", Marca: " + marca + ", Modelo: " + modelo);
+
+            if (token == null || token.isEmpty()) {
+                System.err.println("❌ El token FCM está vacío o es null");
+                return;
+            }
+
             // Verificar si el token ya existe
-            if (tokenDispositivoRepository.findByToken(token).isPresent()) {
-                System.out.println("ℹ️  El token ya está registrado");
+            var existente = tokenDispositivoRepository.findByToken(token);
+            if (existente.isPresent()) {
+                // Actualizar última actividad del token existente
+                TokenDispositivo td = existente.get();
+                td.setUltimaActividad(java.time.LocalDateTime.now());
+                td.setActivo(true);
+                tokenDispositivoRepository.save(td);
+                System.out.println("ℹ️  Token ya existía, actualizada última actividad");
                 return;
             }
 
             TokenDispositivo nuevoToken = new TokenDispositivo(usuario, token, tipoDispositivo, marca, modelo);
             tokenDispositivoRepository.save(nuevoToken);
-            System.out.println("✅ Token de dispositivo registrado: " + token.substring(0, 20) + "...");
+            System.out.println("✅ Token FCM registrado exitosamente para: " + usuario.getNombre());
+
+            // Mostrar cuántos tokens de admin hay ahora
+            long totalAdmins = tokenDispositivoRepository.findTokensActivosAdmins().size();
+            System.out.println("📊 Total tokens de ADMINs activos: " + totalAdmins);
         } catch (Exception e) {
             System.err.println("❌ Error al registrar token: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 

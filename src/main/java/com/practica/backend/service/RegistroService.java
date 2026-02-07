@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.Duration;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
@@ -109,6 +110,10 @@ public class RegistroService {
         registro.setReporte(request.reporte());
         registro.setPicture(request.picture());
 
+        // ⏱️ Calcular y guardar minutos trabajados
+        Duration duracion = Duration.between(registro.getHoraEntrada(), horaActual);
+        registro.setMinutosTrabajados(duracion.toMinutes());
+
         Registro guardado = registroRepository.save(registro);
 
         // 📲 ENVIAR NOTIFICACIÓN A LOS ADMINS
@@ -144,6 +149,30 @@ public class RegistroService {
 
     // �🔁 Mapper centralizado
     private RegistroResponse mapToResponse(Registro r) {
+        // ⏱️ Calcular horas trabajadas
+        String horasTrabajadas;
+        Long minutosTrabajados;
+        Boolean enCurso = (r.getHoraSalida() == null);
+
+        if (enCurso) {
+            // 🟢 Turno en curso - calcular en tiempo real
+            Duration duracion = Duration.between(r.getHoraEntrada(), LocalTime.now());
+            minutosTrabajados = duracion.toMinutes();
+        } else {
+            // 🔴 Turno finalizado - usar valor guardado o calcular
+            if (r.getMinutosTrabajados() != null) {
+                minutosTrabajados = r.getMinutosTrabajados();
+            } else {
+                Duration duracion = Duration.between(r.getHoraEntrada(), r.getHoraSalida());
+                minutosTrabajados = duracion.toMinutes();
+            }
+        }
+
+        // Formatear a "HH:mm:ss"
+        long horas = minutosTrabajados / 60;
+        long minutos = Math.abs(minutosTrabajados % 60);
+        horasTrabajadas = String.format("%02d:%02d:00", horas, minutos);
+
         return new RegistroResponse(
                 r.getId(),
                 r.getFecha(),
@@ -160,7 +189,10 @@ public class RegistroService {
                 r.getUsuario().getIdentificacion(),
                 r.getUsuario().getNombre(),
                 r.getUsuario().getFoto(),
-                r.getUsuario().getTelefono());
+                r.getUsuario().getTelefono(),
+                horasTrabajadas,
+                minutosTrabajados,
+                enCurso);
     }
 
     // 📲 NOTIFICACIÓN DE ENTRADA
