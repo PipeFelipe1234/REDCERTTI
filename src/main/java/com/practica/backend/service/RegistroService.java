@@ -147,31 +147,24 @@ public class RegistroService {
                 .toList();
     }
 
-    // �🔁 Mapper centralizado
+    // 🔁 Mapper centralizado
     private RegistroResponse mapToResponse(Registro r) {
-        // ⏱️ Calcular horas trabajadas
-        String horasTrabajadas;
-        Long minutosTrabajados;
         Boolean enCurso = (r.getHoraSalida() == null);
+        Integer horasTrabajadas;
 
         if (enCurso) {
-            // 🟢 Turno en curso - calcular en tiempo real
+            // 🟢 Turno en curso - calcular horas en tiempo real
             Duration duracion = Duration.between(r.getHoraEntrada(), LocalTime.now());
-            minutosTrabajados = duracion.toMinutes();
+            horasTrabajadas = (int) duracion.toHours();
         } else {
             // 🔴 Turno finalizado - usar valor guardado o calcular
             if (r.getHorasTrabajadas() != null) {
-                minutosTrabajados = r.getHorasTrabajadas();
+                horasTrabajadas = r.getHorasTrabajadas();
             } else {
                 Duration duracion = Duration.between(r.getHoraEntrada(), r.getHoraSalida());
-                minutosTrabajados = duracion.toMinutes();
+                horasTrabajadas = (int) duracion.toHours();
             }
         }
-
-        // Formatear a "HH:mm:ss"
-        long horas = minutosTrabajados / 60;
-        long minutos = Math.abs(minutosTrabajados % 60);
-        horasTrabajadas = String.format("%02d:%02d:00", horas, minutos);
 
         return new RegistroResponse(
                 r.getId(),
@@ -191,7 +184,6 @@ public class RegistroService {
                 r.getUsuario().getFoto(),
                 r.getUsuario().getTelefono(),
                 horasTrabajadas,
-                minutosTrabajados,
                 enCurso);
     }
 
