@@ -13,12 +13,13 @@ public class JwtUtil {
 
     private static final Key key = Keys.hmacShaKeyFor(SECRET.getBytes());
 
-    public static String generarToken(String identificacion, String rol, String nombre, String foto) {
+    public static String generarToken(String identificacion, String rol, String nombre, String foto, String cargo) {
         return Jwts.builder()
                 .setSubject(identificacion)
                 .claim("rol", rol)
                 .claim("nombre", nombre)
                 .claim("foto", foto)
+                .claim("cargo", cargo)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION))
                 .signWith(key, SignatureAlgorithm.HS256)

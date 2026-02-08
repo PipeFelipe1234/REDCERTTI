@@ -26,7 +26,8 @@ public class AuthService {
                 usuario.getIdentificacion(),
                 usuario.getRol(),
                 usuario.getNombre(),
-                usuario.getFoto());
+                usuario.getFoto(),
+                usuario.getCargo());
 
         return new LoginResponse(token);
     }
@@ -45,6 +46,7 @@ public class AuthService {
         String rol = claims.get("rol", String.class);
         String nombre = claims.get("nombre", String.class);
         String foto = claims.get("foto", String.class);
+        String cargo = claims.get("cargo", String.class);
 
         // Verificar si el token es válido (no está expirado)
         if (JwtUtil.esTokenValido(token)) {
@@ -52,7 +54,7 @@ public class AuthService {
             return new LoginResponse(token);
         } else {
             // Token expirado: generar uno nuevo
-            String nuevoToken = JwtUtil.generarToken(identificacion, rol, nombre, foto);
+            String nuevoToken = JwtUtil.generarToken(identificacion, rol, nombre, foto, cargo);
             return new LoginResponse(nuevoToken);
         }
     }

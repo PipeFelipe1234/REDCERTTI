@@ -183,6 +183,7 @@ public class RegistroService {
                 r.getUsuario().getNombre(),
                 r.getUsuario().getFoto(),
                 r.getUsuario().getTelefono(),
+                r.getUsuario().getCargo(),
                 horasTrabajadas,
                 enCurso);
     }
