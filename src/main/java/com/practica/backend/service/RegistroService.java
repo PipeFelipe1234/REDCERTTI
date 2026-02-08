@@ -110,9 +110,10 @@ public class RegistroService {
         registro.setReporte(request.reporte());
         registro.setPicture(request.picture());
 
-        // ⏱️ Calcular y guardar horas trabajadas
+        // ⏱️ Calcular y guardar horas y minutos trabajados
         Duration duracion = Duration.between(registro.getHoraEntrada(), horaActual);
         registro.setHorasTrabajadas((int) duracion.toHours());
+        registro.setMinutosTrabajados((int) duracion.toMinutes());
 
         Registro guardado = registroRepository.save(registro);
 
@@ -151,11 +152,13 @@ public class RegistroService {
     private RegistroResponse mapToResponse(Registro r) {
         Boolean enCurso = (r.getHoraSalida() == null);
         Integer horasTrabajadas;
+        Integer minutosTrabajados;
 
         if (enCurso) {
-            // 🟢 Turno en curso - calcular horas en tiempo real
+            // 🟢 Turno en curso - calcular horas y minutos en tiempo real
             Duration duracion = Duration.between(r.getHoraEntrada(), LocalTime.now());
             horasTrabajadas = (int) duracion.toHours();
+            minutosTrabajados = (int) duracion.toMinutes();
         } else {
             // 🔴 Turno finalizado - usar valor guardado o calcular
             if (r.getHorasTrabajadas() != null) {
@@ -163,6 +166,12 @@ public class RegistroService {
             } else {
                 Duration duracion = Duration.between(r.getHoraEntrada(), r.getHoraSalida());
                 horasTrabajadas = (int) duracion.toHours();
+            }
+            if (r.getMinutosTrabajados() != null) {
+                minutosTrabajados = r.getMinutosTrabajados();
+            } else {
+                Duration duracion = Duration.between(r.getHoraEntrada(), r.getHoraSalida());
+                minutosTrabajados = (int) duracion.toMinutes();
             }
         }
 
@@ -185,6 +194,7 @@ public class RegistroService {
                 r.getUsuario().getTelefono(),
                 r.getUsuario().getCargo(),
                 horasTrabajadas,
+                minutosTrabajados,
                 enCurso);
     }
 
