@@ -2,6 +2,7 @@ package com.practica.backend.controller;
 
 import com.practica.backend.dto.ExportRequest;
 import com.practica.backend.dto.RegistroFilterRequest;
+import com.practica.backend.dto.UsuarioUpdateRequest;
 import com.practica.backend.service.ExportService;
 import com.practica.backend.service.RegistroService;
 import com.practica.backend.service.ScheduledCleanupService;
@@ -53,7 +54,15 @@ public class AdminController {
         return ResponseEntity.ok(usuarioService.obtenerUsuarioResponsePorId(id));
     }
 
-    // 🔍 FILTRAR REGISTROS POR FECHA, IDENTIFICACIÓN O NOMBRES
+    // � MODIFICAR UN USUARIO POR ID (actualización parcial)
+    @PutMapping("/usuarios/{id}")
+    public ResponseEntity<?> actualizarUsuario(
+            @PathVariable Long id,
+            @RequestBody UsuarioUpdateRequest request) {
+        return ResponseEntity.ok(usuarioService.actualizarUsuarioParcial(id, request));
+    }
+
+    // �🔍 FILTRAR REGISTROS POR FECHA, IDENTIFICACIÓN O NOMBRES
     @PostMapping("/registros/filtrar")
     public ResponseEntity<?> filtrarRegistros(@RequestBody RegistroFilterRequest filtro) {
         return ResponseEntity.ok(registroService.filtrarRegistros(filtro));
