@@ -29,6 +29,7 @@ public class UsuarioService {
         usuario.setRol(request.rol());
         usuario.setFoto(request.foto());
         usuario.setTelefono(request.telefono());
+        usuario.setCargo(request.cargo());
 
         Usuario guardado = usuarioRepository.save(usuario);
 
@@ -39,7 +40,8 @@ public class UsuarioService {
                 guardado.getEmail(),
                 guardado.getRol(),
                 guardado.getFoto(),
-                guardado.getTelefono());
+                guardado.getTelefono(),
+                guardado.getCargo());
     }
 
     public UsuarioResponse actualizarUsuario(Long id, UsuarioRequest request) {
@@ -52,6 +54,7 @@ public class UsuarioService {
         usuario.setRol(request.rol());
         usuario.setFoto(request.foto());
         usuario.setTelefono(request.telefono());
+        usuario.setCargo(request.cargo());
 
         Usuario actualizado = usuarioRepository.save(usuario);
 
@@ -62,16 +65,45 @@ public class UsuarioService {
                 actualizado.getEmail(),
                 actualizado.getRol(),
                 actualizado.getFoto(),
-                actualizado.getTelefono());
+                actualizado.getTelefono(),
+                actualizado.getCargo());
     }
 
     public Usuario obtenerPorId(Long id) {
         return usuarioRepository.findById(id).orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
     }
 
+    public UsuarioResponse obtenerUsuarioResponsePorId(Long id) {
+        Usuario u = usuarioRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+        return new UsuarioResponse(
+                u.getId(),
+                u.getIdentificacion(),
+                u.getNombre(),
+                u.getEmail(),
+                u.getRol(),
+                u.getFoto(),
+                u.getTelefono(),
+                u.getCargo());
+    }
+
     public Usuario obtenerPorIdentificacion(String identificacion) {
         return usuarioRepository.findByIdentificacion(identificacion)
+                .orElse(null);
+    }
+
+    public UsuarioResponse obtenerUsuarioResponsePorIdentificacion(String identificacion) {
+        Usuario u = usuarioRepository.findByIdentificacion(identificacion)
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+        return new UsuarioResponse(
+                u.getId(),
+                u.getIdentificacion(),
+                u.getNombre(),
+                u.getEmail(),
+                u.getRol(),
+                u.getFoto(),
+                u.getTelefono(),
+                u.getCargo());
     }
 
     public UsuarioResponse actualizarPorIdentificacion(String identificacion, UsuarioRequest request) {
@@ -84,6 +116,7 @@ public class UsuarioService {
         usuario.setRol(request.rol());
         usuario.setFoto(request.foto());
         usuario.setTelefono(request.telefono());
+        usuario.setCargo(request.cargo());
 
         Usuario actualizado = usuarioRepository.save(usuario);
 
@@ -94,7 +127,8 @@ public class UsuarioService {
                 actualizado.getEmail(),
                 actualizado.getRol(),
                 actualizado.getFoto(),
-                actualizado.getTelefono());
+                actualizado.getTelefono(),
+                actualizado.getCargo());
     }
 
     public List<UsuarioResponse> obtenerTodos() {
@@ -107,7 +141,8 @@ public class UsuarioService {
                         u.getEmail(),
                         u.getRol(),
                         u.getFoto(),
-                        u.getTelefono()))
+                        u.getTelefono(),
+                        u.getCargo()))
                 .toList();
     }
 }

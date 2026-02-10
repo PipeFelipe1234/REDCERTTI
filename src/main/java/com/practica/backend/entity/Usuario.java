@@ -28,11 +28,14 @@ public class Usuario {
     @Column
     private String telefono;
 
+    @Column
+    private String cargo;
+
     public Usuario() {
     }
 
     public Usuario(Long id, String identificacion, String nombre, String email, String rol, String foto,
-            String telefono) {
+            String telefono, String cargo) {
         this.id = id;
         this.identificacion = identificacion;
         this.nombre = nombre;
@@ -40,6 +43,7 @@ public class Usuario {
         this.rol = rol;
         this.foto = foto;
         this.telefono = telefono;
+        this.cargo = cargo;
     }
 
     public Long getId() {
@@ -96,5 +100,13 @@ public class Usuario {
 
     public void setTelefono(String telefono) {
         this.telefono = telefono;
+    }
+
+    public String getCargo() {
+        return cargo;
+    }
+
+    public void setCargo(String cargo) {
+        this.cargo = cargo;
     }
 }

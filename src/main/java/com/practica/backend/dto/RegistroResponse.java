@@ -19,5 +19,10 @@ public record RegistroResponse(
         String identificacion,
         String nombre,
         String foto,
-        String telefono) {
+        String telefono,
+        String cargo,
+        Integer horasTrabajadas, // Total de horas trabajadas (entero)
+        Integer minutosTrabajados, // Total de minutos trabajados
+        Boolean enCurso // true si aún no ha marcado salida
+) {
 }

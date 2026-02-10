@@ -12,17 +12,22 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.Duration;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class RegistroService {
 
     private final RegistroRepository registroRepository;
+    private final NotificacionService notificacionService;
     private static final DateTimeFormatter ISO_FORMATTER = DateTimeFormatter.ISO_DATE_TIME;
 
-    public RegistroService(RegistroRepository registroRepository) {
+    public RegistroService(RegistroRepository registroRepository, NotificacionService notificacionService) {
         this.registroRepository = registroRepository;
+        this.notificacionService = notificacionService;
     }
 
     /**
@@ -68,6 +73,9 @@ public class RegistroService {
 
         Registro guardado = registroRepository.save(registro);
 
+        // 📲 ENVIAR NOTIFICACIÓN A LOS ADMINS
+        enviarNotificacionEntrada(guardado);
+
         return mapToResponse(guardado);
     }
 
@@ -102,7 +110,15 @@ public class RegistroService {
         registro.setReporte(request.reporte());
         registro.setPicture(request.picture());
 
+        // ⏱️ Calcular y guardar horas y minutos trabajados
+        Duration duracion = Duration.between(registro.getHoraEntrada(), horaActual);
+        registro.setHorasTrabajadas((int) duracion.toHours());
+        registro.setMinutosTrabajados((int) duracion.toMinutes());
+
         Registro guardado = registroRepository.save(registro);
+
+        // 📲 ENVIAR NOTIFICACIÓN A LOS ADMINS
+        enviarNotificacionSalida(guardado);
 
         return mapToResponse(guardado);
     }
@@ -132,8 +148,33 @@ public class RegistroService {
                 .toList();
     }
 
-    // �🔁 Mapper centralizado
+    // 🔁 Mapper centralizado
     private RegistroResponse mapToResponse(Registro r) {
+        Boolean enCurso = (r.getHoraSalida() == null);
+        Integer horasTrabajadas;
+        Integer minutosTrabajados;
+
+        if (enCurso) {
+            // 🟢 Turno en curso - calcular horas y minutos en tiempo real
+            Duration duracion = Duration.between(r.getHoraEntrada(), LocalTime.now());
+            horasTrabajadas = (int) duracion.toHours();
+            minutosTrabajados = (int) duracion.toMinutes();
+        } else {
+            // 🔴 Turno finalizado - usar valor guardado o calcular
+            if (r.getHorasTrabajadas() != null) {
+                horasTrabajadas = r.getHorasTrabajadas();
+            } else {
+                Duration duracion = Duration.between(r.getHoraEntrada(), r.getHoraSalida());
+                horasTrabajadas = (int) duracion.toHours();
+            }
+            if (r.getMinutosTrabajados() != null) {
+                minutosTrabajados = r.getMinutosTrabajados();
+            } else {
+                Duration duracion = Duration.between(r.getHoraEntrada(), r.getHoraSalida());
+                minutosTrabajados = (int) duracion.toMinutes();
+            }
+        }
+
         return new RegistroResponse(
                 r.getId(),
                 r.getFecha(),
@@ -150,6 +191,48 @@ public class RegistroService {
                 r.getUsuario().getIdentificacion(),
                 r.getUsuario().getNombre(),
                 r.getUsuario().getFoto(),
-                r.getUsuario().getTelefono());
+                r.getUsuario().getTelefono(),
+                r.getUsuario().getCargo(),
+                horasTrabajadas,
+                minutosTrabajados,
+                enCurso);
+    }
+
+    // 📲 NOTIFICACIÓN DE ENTRADA
+    private void enviarNotificacionEntrada(Registro registro) {
+        try {
+            Map<String, String> datos = new HashMap<>();
+            datos.put("tipo", "ENTRADA");
+            datos.put("registroId", registro.getId().toString());
+            datos.put("usuarioId", registro.getUsuario().getId().toString());
+            datos.put("fecha", registro.getFecha().toString());
+            datos.put("hora", registro.getHoraEntrada().toString());
+
+            String titulo = "✅ Entrada Registrada";
+            String mensaje = registro.getUsuario().getNombre() + " marcó Entrada";
+
+            notificacionService.enviarNotificacionAAdmins(titulo, mensaje, datos);
+        } catch (Exception e) {
+            System.err.println("❌ Error al enviar notificación de entrada: " + e.getMessage());
+        }
+    }
+
+    // 📲 NOTIFICACIÓN DE SALIDA
+    private void enviarNotificacionSalida(Registro registro) {
+        try {
+            Map<String, String> datos = new HashMap<>();
+            datos.put("tipo", "SALIDA");
+            datos.put("registroId", registro.getId().toString());
+            datos.put("usuarioId", registro.getUsuario().getId().toString());
+            datos.put("fecha", registro.getFecha().toString());
+            datos.put("hora", registro.getHoraSalida().toString());
+
+            String titulo = "🚪 Salida Registrada";
+            String mensaje = registro.getUsuario().getNombre() + " marcó Salida";
+
+            notificacionService.enviarNotificacionAAdmins(titulo, mensaje, datos);
+        } catch (Exception e) {
+            System.err.println("❌ Error al enviar notificación de salida: " + e.getMessage());
+        }
     }
 }
