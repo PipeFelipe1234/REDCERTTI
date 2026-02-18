@@ -117,6 +117,7 @@ public class NotificacionService {
             }
 
             System.out.println("📤 Enviando notificación a " + tokens.size() + " dispositivo(s)...");
+            System.out.println("   Firebase App inicializado: " + !com.google.firebase.FirebaseApp.getApps().isEmpty());
 
             // Crear lista de mensajes individuales (API HTTP v1)
             List<Message> messages = new ArrayList<>();
@@ -145,6 +146,7 @@ public class NotificacionService {
             }
         } catch (Exception e) {
             System.err.println("❌ Error al enviar notificaciones: " + e.getMessage());
+            System.err.println("   Tipo de excepción: " + e.getClass().getName());
             e.printStackTrace();
         }
     }
@@ -154,13 +156,37 @@ public class NotificacionService {
      */
     private void procesarTokensFallidos(BatchResponse response, List<String> tokens) {
         for (int i = 0; i < tokens.size(); i++) {
-            if (!response.getResponses().get(i).isSuccessful()) {
+            SendResponse sendResponse = response.getResponses().get(i);
+            if (!sendResponse.isSuccessful()) {
                 String token = tokens.get(i);
-                tokenDispositivoRepository.findByToken(token).ifPresent(td -> {
-                    td.setActivo(false);
-                    tokenDispositivoRepository.save(td);
-                    System.out.println("🗑️  Token inactivado: " + token);
-                });
+
+                // Obtener el error específico de Firebase
+                String errorMessage = "Desconocido";
+                String errorCode = "UNKNOWN";
+                if (sendResponse.getException() != null) {
+                    errorMessage = sendResponse.getException().getMessage();
+                    if (sendResponse.getException().getMessagingErrorCode() != null) {
+                        errorCode = sendResponse.getException().getMessagingErrorCode().name();
+                    }
+                }
+
+                System.err
+                        .println("❌ Error FCM para token " + token.substring(0, Math.min(30, token.length())) + "...");
+                System.err.println("   Código de error: " + errorCode);
+                System.err.println("   Mensaje: " + errorMessage);
+
+                // Solo desactivar si es un error de token inválido/no registrado
+                final String finalErrorCode = errorCode;
+                if ("UNREGISTERED".equals(errorCode) || "INVALID_ARGUMENT".equals(errorCode)) {
+                    tokenDispositivoRepository.findByToken(token).ifPresent(td -> {
+                        td.setActivo(false);
+                        tokenDispositivoRepository.save(td);
+                        System.out.println("🗑️  Token inactivado por error: " + finalErrorCode);
+                    });
+                } else {
+                    // Para otros errores (temporales), no desactivar el token
+                    System.out.println("⚠️  Token NO inactivado (error posiblemente temporal): " + errorCode);
+                }
             }
         }
     }
