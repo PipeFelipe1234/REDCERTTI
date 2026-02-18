@@ -1,4 +1,4 @@
-# 🎯 ÍNDICE PRINCIPAL - Notificaciones Push Firebase
+# 🎯 ÍNDICE PRINCIPAL - Notificaciones Push de Firebase
 
 ## 🚀 COMIENZA AQUÍ
 
