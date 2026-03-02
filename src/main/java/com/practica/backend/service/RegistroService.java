@@ -70,6 +70,7 @@ public class RegistroService {
         registro.setLatitudCheckin(request.latitudCheckin());
         registro.setLongitudCheckin(request.longitudCheckin());
         registro.setPrecisionMetrosCheckin(request.precisionMetrosCheckin());
+        registro.setUbicacionEntrada(request.ubicacionEntrada());
 
         Registro guardado = registroRepository.save(registro);
 
@@ -110,6 +111,7 @@ public class RegistroService {
         registro.setPrecisionMetros(request.precisionMetros());
         registro.setReporte(request.reporte());
         registro.setPicture(request.picture());
+        registro.setUbicacionSalida(request.ubicacionSalida());
 
         // ⏱️ Calcular horas trabajadas considerando que pueden ser días diferentes
         LocalDateTime fechaHoraEntrada = LocalDateTime.of(registro.getFecha(), registro.getHoraEntrada());
@@ -199,7 +201,9 @@ public class RegistroService {
                 r.getUsuario().getCargo(),
                 horasTrabajadas,
                 minutosTrabajados,
-                enCurso);
+                enCurso,
+                r.getUbicacionEntrada(),
+                r.getUbicacionSalida());
     }
 
     // 📲 NOTIFICACIÓN DE ENTRADA

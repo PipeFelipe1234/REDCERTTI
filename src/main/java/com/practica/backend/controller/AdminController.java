@@ -7,6 +7,8 @@ import com.practica.backend.service.ExportService;
 import com.practica.backend.service.RegistroService;
 import com.practica.backend.service.ScheduledCleanupService;
 import com.practica.backend.service.UsuarioService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +21,8 @@ import java.util.Map;
 @RequestMapping("/api/admin")
 @CrossOrigin(origins = "*")
 public class AdminController {
+
+    private static final Logger logger = LoggerFactory.getLogger(AdminController.class);
 
     private final RegistroService registroService;
     private final UsuarioService usuarioService;
@@ -90,41 +94,72 @@ public class AdminController {
     }
 
     /**
-     * Exporta TODOS los registros del mes a PDF (todos los empleados)
+     * Exporta registros a PDF con filtros avanzados
+     * Recibe: ExportRequest con fechaInicio, fechaFin, usuarioId (opcional),
+     * busqueda (opcional)
      */
     @PostMapping("/exportar/pdf")
     public ResponseEntity<byte[]> exportarPdf(@RequestBody ExportRequest request) {
         try {
-            int mes = request.mes() != null ? request.mes() : LocalDate.now().getMonthValue();
-            int anio = request.anio() != null ? request.anio() : LocalDate.now().getYear();
+            logger.info("📤 Admin exportando PDF - fechaInicio: {}, fechaFin: {}, usuarioId: {}, busqueda: {}",
+                    request.fechaInicio(), request.fechaFin(), request.usuarioId(), request.busqueda());
 
-            byte[] pdfBytes = exportService.exportarPdfAdmin(mes, anio);
+            byte[] pdfBytes;
+            String filename;
 
-            String nombreMes = exportService.getNombreMes(mes);
-            String filename = "Registros_Todos_" + nombreMes + "_" + anio + ".pdf";
+            // Si se especifican fechaInicio/fechaFin, usar nuevo método con filtros
+            if (request.fechaInicio() != null || request.fechaFin() != null) {
+                pdfBytes = exportService.exportarPdfAdmin(request);
+                filename = "reporte_asistencia.pdf";
+            } else {
+                // Método legacy por mes/año
+                int mes = request.mes() != null ? request.mes() : LocalDate.now().getMonthValue();
+                int anio = request.anio() != null ? request.anio() : LocalDate.now().getYear();
+                pdfBytes = exportService.exportarPdfAdmin(mes, anio);
+                String nombreMes = exportService.getNombreMes(mes);
+                filename = "Registros_Todos_" + nombreMes + "_" + anio + ".pdf";
+            }
+
+            logger.info("✅ PDF generado exitosamente");
 
             return ResponseEntity.ok()
                     .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
                     .contentType(MediaType.APPLICATION_PDF)
                     .body(pdfBytes);
         } catch (Exception e) {
+            logger.error("❌ Error al generar PDF: {}", e.getMessage());
             throw new RuntimeException("Error al generar PDF: " + e.getMessage());
         }
     }
 
     /**
-     * Exporta TODOS los registros del mes a Excel (todos los empleados)
+     * Exporta registros a Excel con filtros avanzados
+     * Recibe: ExportRequest con fechaInicio, fechaFin, usuarioId (opcional),
+     * busqueda (opcional)
      */
     @PostMapping("/exportar/excel")
     public ResponseEntity<byte[]> exportarExcel(@RequestBody ExportRequest request) {
         try {
-            int mes = request.mes() != null ? request.mes() : LocalDate.now().getMonthValue();
-            int anio = request.anio() != null ? request.anio() : LocalDate.now().getYear();
+            logger.info("📤 Admin exportando Excel - fechaInicio: {}, fechaFin: {}, usuarioId: {}, busqueda: {}",
+                    request.fechaInicio(), request.fechaFin(), request.usuarioId(), request.busqueda());
 
-            byte[] excelBytes = exportService.exportarExcelAdmin(mes, anio);
+            byte[] excelBytes;
+            String filename;
 
-            String nombreMes = exportService.getNombreMes(mes);
-            String filename = "Registros_Todos_" + nombreMes + "_" + anio + ".xlsx";
+            // Si se especifican fechaInicio/fechaFin, usar nuevo método con filtros
+            if (request.fechaInicio() != null || request.fechaFin() != null) {
+                excelBytes = exportService.exportarExcelAdmin(request);
+                filename = "reporte_asistencia.xlsx";
+            } else {
+                // Método legacy por mes/año
+                int mes = request.mes() != null ? request.mes() : LocalDate.now().getMonthValue();
+                int anio = request.anio() != null ? request.anio() : LocalDate.now().getYear();
+                excelBytes = exportService.exportarExcelAdmin(mes, anio);
+                String nombreMes = exportService.getNombreMes(mes);
+                filename = "Registros_Todos_" + nombreMes + "_" + anio + ".xlsx";
+            }
+
+            logger.info("✅ Excel generado exitosamente");
 
             return ResponseEntity.ok()
                     .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
@@ -132,12 +167,14 @@ public class AdminController {
                             .parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
                     .body(excelBytes);
         } catch (Exception e) {
+            logger.error("❌ Error al generar Excel: {}", e.getMessage());
             throw new RuntimeException("Error al generar Excel: " + e.getMessage());
         }
     }
 
     /**
-     * Exporta TODOS los registros del mes a Word (todos los empleados)
+     * Exporta TODOS los registros del mes a Word (todos los empleados) - Método
+     * legacy
      */
     @PostMapping("/exportar/word")
     public ResponseEntity<byte[]> exportarWord(@RequestBody ExportRequest request) {

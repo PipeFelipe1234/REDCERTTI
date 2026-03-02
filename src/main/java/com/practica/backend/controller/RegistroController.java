@@ -9,6 +9,9 @@ import com.practica.backend.service.ExportService;
 import com.practica.backend.service.RegistroService;
 import com.practica.backend.service.ScheduledCleanupService;
 import com.practica.backend.service.UsuarioService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +24,8 @@ import java.time.LocalDate;
 @RequestMapping("/api/registros")
 @CrossOrigin(origins = "*")
 public class RegistroController {
+
+        private static final Logger logger = LoggerFactory.getLogger(RegistroController.class);
 
         private final RegistroService registroService;
         private final UsuarioService usuarioService;
@@ -96,22 +101,39 @@ public class RegistroController {
         }
 
         /**
-         * Exporta los registros del usuario a PDF
+         * Exporta los registros del usuario autenticado a PDF
+         * Recibe: fechaInicio y fechaFin como parámetros de query
+         * Obtiene el usuarioId del token JWT del usuario autenticado
          */
         @PostMapping("/exportar/pdf")
-        public ResponseEntity<byte[]> exportarPdf(@RequestBody ExportRequest request) {
+        public ResponseEntity<byte[]> exportarPdf(
+                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaInicio,
+                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaFin) {
                 try {
                         String identificacion = SecurityContextHolder.getContext()
                                         .getAuthentication().getName();
                         Usuario usuario = usuarioService.obtenerPorIdentificacion(identificacion);
 
-                        int mes = request.mes() != null ? request.mes() : LocalDate.now().getMonthValue();
-                        int anio = request.anio() != null ? request.anio() : LocalDate.now().getYear();
+                        logger.info("📤 Usuario {} exportando PDF - fechaInicio: {}, fechaFin: {}",
+                                        usuario.getNombre(), fechaInicio, fechaFin);
 
-                        byte[] pdfBytes = exportService.exportarPdfUsuario(usuario, mes, anio);
+                        byte[] pdfBytes;
+                        String filename;
 
-                        String nombreMes = exportService.getNombreMes(mes);
-                        String filename = "Registros_" + nombreMes + "_" + anio + ".pdf";
+                        // Si se especifican fechas, usar nuevo método con filtros
+                        if (fechaInicio != null || fechaFin != null) {
+                                pdfBytes = exportService.exportarPdfUsuario(usuario.getId(), fechaInicio, fechaFin);
+                                filename = "reporte_asistencia.pdf";
+                        } else {
+                                // Método legacy por mes/año actual
+                                int mes = LocalDate.now().getMonthValue();
+                                int anio = LocalDate.now().getYear();
+                                pdfBytes = exportService.exportarPdfUsuario(usuario, mes, anio);
+                                String nombreMes = exportService.getNombreMes(mes);
+                                filename = "Registros_" + nombreMes + "_" + anio + ".pdf";
+                        }
+
+                        logger.info("✅ PDF generado exitosamente para usuario {}", usuario.getNombre());
 
                         return ResponseEntity.ok()
                                         .header(HttpHeaders.CONTENT_DISPOSITION,
@@ -119,27 +141,45 @@ public class RegistroController {
                                         .contentType(MediaType.APPLICATION_PDF)
                                         .body(pdfBytes);
                 } catch (Exception e) {
+                        logger.error("❌ Error al generar PDF: {}", e.getMessage());
                         throw new RuntimeException("Error al generar PDF: " + e.getMessage());
                 }
         }
 
         /**
-         * Exporta los registros del usuario a Excel
+         * Exporta los registros del usuario autenticado a Excel
+         * Recibe: fechaInicio y fechaFin como parámetros de query
+         * Obtiene el usuarioId del token JWT del usuario autenticado
          */
         @PostMapping("/exportar/excel")
-        public ResponseEntity<byte[]> exportarExcel(@RequestBody ExportRequest request) {
+        public ResponseEntity<byte[]> exportarExcel(
+                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaInicio,
+                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaFin) {
                 try {
                         String identificacion = SecurityContextHolder.getContext()
                                         .getAuthentication().getName();
                         Usuario usuario = usuarioService.obtenerPorIdentificacion(identificacion);
 
-                        int mes = request.mes() != null ? request.mes() : LocalDate.now().getMonthValue();
-                        int anio = request.anio() != null ? request.anio() : LocalDate.now().getYear();
+                        logger.info("📤 Usuario {} exportando Excel - fechaInicio: {}, fechaFin: {}",
+                                        usuario.getNombre(), fechaInicio, fechaFin);
 
-                        byte[] excelBytes = exportService.exportarExcelUsuario(usuario, mes, anio);
+                        byte[] excelBytes;
+                        String filename;
 
-                        String nombreMes = exportService.getNombreMes(mes);
-                        String filename = "Registros_" + nombreMes + "_" + anio + ".xlsx";
+                        // Si se especifican fechas, usar nuevo método con filtros
+                        if (fechaInicio != null || fechaFin != null) {
+                                excelBytes = exportService.exportarExcelUsuario(usuario.getId(), fechaInicio, fechaFin);
+                                filename = "reporte_asistencia.xlsx";
+                        } else {
+                                // Método legacy por mes/año actual
+                                int mes = LocalDate.now().getMonthValue();
+                                int anio = LocalDate.now().getYear();
+                                excelBytes = exportService.exportarExcelUsuario(usuario, mes, anio);
+                                String nombreMes = exportService.getNombreMes(mes);
+                                filename = "Registros_" + nombreMes + "_" + anio + ".xlsx";
+                        }
+
+                        logger.info("✅ Excel generado exitosamente para usuario {}", usuario.getNombre());
 
                         return ResponseEntity.ok()
                                         .header(HttpHeaders.CONTENT_DISPOSITION,
@@ -148,12 +188,13 @@ public class RegistroController {
                                                         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
                                         .body(excelBytes);
                 } catch (Exception e) {
+                        logger.error("❌ Error al generar Excel: {}", e.getMessage());
                         throw new RuntimeException("Error al generar Excel: " + e.getMessage());
                 }
         }
 
         /**
-         * Exporta los registros del usuario a Word
+         * Exporta los registros del usuario a Word - Método legacy
          */
         @PostMapping("/exportar/word")
         public ResponseEntity<byte[]> exportarWord(@RequestBody ExportRequest request) {
