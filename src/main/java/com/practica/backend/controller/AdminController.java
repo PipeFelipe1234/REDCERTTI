@@ -2,8 +2,11 @@ package com.practica.backend.controller;
 
 import com.practica.backend.dto.ExportRequest;
 import com.practica.backend.dto.RegistroFilterRequest;
+import com.practica.backend.dto.SolicitudUbicacionResponse;
 import com.practica.backend.dto.UsuarioUpdateRequest;
+import com.practica.backend.entity.Usuario;
 import com.practica.backend.service.ExportService;
+import com.practica.backend.service.GeolocalizacionService;
 import com.practica.backend.service.RegistroService;
 import com.practica.backend.service.ScheduledCleanupService;
 import com.practica.backend.service.UsuarioService;
@@ -12,6 +15,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -28,16 +32,19 @@ public class AdminController {
     private final UsuarioService usuarioService;
     private final ExportService exportService;
     private final ScheduledCleanupService cleanupService;
+    private final GeolocalizacionService geolocalizacionService;
 
     public AdminController(
             RegistroService registroService,
             UsuarioService usuarioService,
             ExportService exportService,
-            ScheduledCleanupService cleanupService) {
+            ScheduledCleanupService cleanupService,
+            GeolocalizacionService geolocalizacionService) {
         this.registroService = registroService;
         this.usuarioService = usuarioService;
         this.exportService = exportService;
         this.cleanupService = cleanupService;
+        this.geolocalizacionService = geolocalizacionService;
     }
 
     // 👮 VER TODOS LOS REGISTROS
@@ -210,5 +217,43 @@ public class AdminController {
                 "eliminados", eliminados,
                 "mes", nombreMes,
                 "anio", anio));
+    }
+
+    // ============================
+    // 📍 GEOLOCALIZACIÓN EN TIEMPO REAL
+    // ============================
+
+    /**
+     * Admin solicita la ubicación de un empleado
+     * Envía notificación silenciosa (data-only) al dispositivo del empleado
+     * 
+     * @param empleadoId ID del empleado a geolocalizar
+     * @return solicitudId y estado
+     */
+    @PostMapping("/geolocalizar/{empleadoId}")
+    public ResponseEntity<SolicitudUbicacionResponse> solicitarUbicacion(@PathVariable Long empleadoId) {
+        logger.info("📍 Solicitud de geolocalización para empleado ID: {}", empleadoId);
+
+        String identificacion = SecurityContextHolder.getContext().getAuthentication().getName();
+        Usuario admin = usuarioService.obtenerPorIdentificacion(identificacion);
+
+        SolicitudUbicacionResponse response = geolocalizacionService.solicitarUbicacion(admin, empleadoId);
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Admin consulta el resultado de una solicitud de ubicación (polling)
+     * 
+     * @param solicitudId ID de la solicitud a consultar
+     * @return Estado y datos de la ubicación si ya respondió
+     */
+    @GetMapping("/geolocalizar/resultado/{solicitudId}")
+    public ResponseEntity<SolicitudUbicacionResponse> obtenerResultadoGeolocalizacion(@PathVariable Long solicitudId) {
+        logger.info("📍 Consultando resultado de solicitud ID: {}", solicitudId);
+
+        SolicitudUbicacionResponse response = geolocalizacionService.obtenerResultado(solicitudId);
+
+        return ResponseEntity.ok(response);
     }
 }
