@@ -29,14 +29,17 @@ public class GeolocalizacionService {
     private final SolicitudUbicacionRepository solicitudRepository;
     private final UsuarioRepository usuarioRepository;
     private final TokenDispositivoRepository tokenDispositivoRepository;
+    private final GeocodingService geocodingService;
 
     public GeolocalizacionService(
             SolicitudUbicacionRepository solicitudRepository,
             UsuarioRepository usuarioRepository,
-            TokenDispositivoRepository tokenDispositivoRepository) {
+            TokenDispositivoRepository tokenDispositivoRepository,
+            GeocodingService geocodingService) {
         this.solicitudRepository = solicitudRepository;
         this.usuarioRepository = usuarioRepository;
         this.tokenDispositivoRepository = tokenDispositivoRepository;
+        this.geocodingService = geocodingService;
     }
 
     /**
@@ -118,15 +121,24 @@ public class GeolocalizacionService {
             solicitud.setLatitud(request.latitud());
             solicitud.setLongitud(request.longitud());
             solicitud.setPrecisionMetros(request.precisionMetros());
-            solicitud.setUbicacion(request.ubicacion());
+
+            // 📍 Reverse geocoding: si el frontend envía ubicación la usamos, si no,
+            // llamamos a Google API
+            String ubicacion = request.ubicacion();
+            if (ubicacion == null || ubicacion.trim().isEmpty()) {
+                ubicacion = geocodingService.obtenerDireccion(
+                        request.latitud(),
+                        request.longitud());
+            }
+            solicitud.setUbicacion(ubicacion);
             solicitud.setEstado("RESPONDIDA");
             solicitudRepository.save(solicitud);
 
             logger.info("✅ Solicitud {} respondida exitosamente", request.solicitudId());
 
             // Notificar al admin que ya tiene la ubicación
-            String ubicacionTexto = request.ubicacion() != null
-                    ? request.ubicacion()
+            String ubicacionTexto = ubicacion != null
+                    ? ubicacion
                     : String.format("Lat: %.6f, Lon: %.6f", request.latitud(), request.longitud());
 
             enviarNotificacionAlAdmin(
