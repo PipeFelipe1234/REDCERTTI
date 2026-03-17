@@ -1,8 +1,12 @@
 package com.practica.backend.service;
 
 import com.google.firebase.messaging.AndroidConfig;
+import com.google.firebase.messaging.ApnsConfig;
+import com.google.firebase.messaging.Aps;
 import com.google.firebase.messaging.FirebaseMessaging;
+import com.google.firebase.messaging.FirebaseMessagingException;
 import com.google.firebase.messaging.Message;
+import com.google.firebase.messaging.MessagingErrorCode;
 import com.google.firebase.messaging.Notification;
 import com.practica.backend.dto.ResponderUbicacionRequest;
 import com.practica.backend.dto.SolicitudUbicacionResponse;
@@ -201,41 +205,77 @@ public class GeolocalizacionService {
 
     /**
      * Envía notificación SILENCIOSA (data-only, sin título ni body)
-     * al dispositivo del empleado
+     * al dispositivo del empleado.
+     * 
+     * Configuración según requisitos:
+     * - Data-only (sin notification) para que Flutter background handler se ejecute
+     * - priority: HIGH para despertar el dispositivo inmediatamente
+     * - ttl: 60 segundos - si no se entrega en ese tiempo, la solicitud ya no tiene
+     * sentido
+     * - APNS config para iOS: content-available para background wake
      */
     private boolean enviarNotificacionSilenciosa(Usuario empleado, Long solicitudId) {
-        try {
-            List<TokenDispositivo> tokens = tokenDispositivoRepository.findTokensActivosByUsuario(empleado);
+        List<TokenDispositivo> tokens = tokenDispositivoRepository.findTokensActivosByUsuario(empleado);
 
-            if (tokens.isEmpty()) {
-                logger.warn("⚠️ El empleado {} no tiene dispositivos registrados", empleado.getNombre());
-                return false;
-            }
+        if (tokens.isEmpty()) {
+            logger.warn("⚠️ El empleado {} no tiene dispositivos registrados", empleado.getNombre());
+            return false;
+        }
 
-            for (TokenDispositivo tokenDispositivo : tokens) {
-                String fcmToken = tokenDispositivo.getToken();
+        int exitosos = 0;
+        int fallidos = 0;
 
-                // Crear mensaje DATA-ONLY (sin .setNotification())
+        for (TokenDispositivo tokenDispositivo : tokens) {
+            String fcmToken = tokenDispositivo.getToken();
+
+            try {
+                // Crear mensaje DATA-ONLY con todas las configuraciones requeridas
                 Message message = Message.builder()
                         .setToken(fcmToken)
+                        // Solo datos, SIN .setNotification() para que sea silenciosa
                         .putData("type", "SOLICITUD_UBICACION")
                         .putData("solicitudId", String.valueOf(solicitudId))
                         .putData("timeout", String.valueOf(SEGUNDOS_EXPIRACION))
-                        // NO poner .setNotification() — esto la hace silenciosa
+                        // Android: priority HIGH + TTL 60 segundos
                         .setAndroidConfig(AndroidConfig.builder()
                                 .setPriority(AndroidConfig.Priority.HIGH)
+                                .setTtl(60 * 1000L) // 60 segundos en milisegundos
+                                .build())
+                        // iOS: content-available para despertar la app en background
+                        .setApnsConfig(ApnsConfig.builder()
+                                .putHeader("apns-priority", "10") // Máxima prioridad
+                                .putHeader("apns-push-type", "background")
+                                .setAps(Aps.builder()
+                                        .setContentAvailable(true)
+                                        .build())
                                 .build())
                         .build();
 
                 String messageId = FirebaseMessaging.getInstance().send(message);
                 logger.info("✅ Notificación silenciosa enviada a {}: {}", empleado.getNombre(), messageId);
-            }
+                exitosos++;
 
-            return true;
-        } catch (Exception e) {
-            logger.error("❌ Error al enviar notificación silenciosa: {}", e.getMessage());
-            return false;
+            } catch (FirebaseMessagingException e) {
+                fallidos++;
+                MessagingErrorCode errorCode = e.getMessagingErrorCode();
+
+                // Token inválido: el usuario desinstaló la app o el token expiró
+                if (errorCode == MessagingErrorCode.UNREGISTERED ||
+                        errorCode == MessagingErrorCode.INVALID_ARGUMENT) {
+                    logger.warn("⚠️ Token FCM inválido para {}, eliminando de la BD", empleado.getNombre());
+                    tokenDispositivoRepository.delete(tokenDispositivo);
+                } else {
+                    logger.error("❌ Error FCM al enviar a {}: {} - {}",
+                            empleado.getNombre(), errorCode, e.getMessage());
+                }
+            } catch (Exception e) {
+                fallidos++;
+                logger.error("❌ Error inesperado al enviar notificación: {}", e.getMessage());
+            }
         }
+
+        logger.info("📊 Notificaciones silenciosas: {} exitosas, {} fallidas", exitosos, fallidos);
+        return exitosos > 0;
     }
 
     /**
