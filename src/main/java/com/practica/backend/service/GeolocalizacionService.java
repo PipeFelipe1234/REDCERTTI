@@ -13,6 +13,7 @@ import com.practica.backend.dto.SolicitudUbicacionResponse;
 import com.practica.backend.entity.SolicitudUbicacion;
 import com.practica.backend.entity.TokenDispositivo;
 import com.practica.backend.entity.Usuario;
+import com.practica.backend.repository.RegistroRepository;
 import com.practica.backend.repository.SolicitudUbicacionRepository;
 import com.practica.backend.repository.TokenDispositivoRepository;
 import com.practica.backend.repository.UsuarioRepository;
@@ -33,16 +34,19 @@ public class GeolocalizacionService {
     private final SolicitudUbicacionRepository solicitudRepository;
     private final UsuarioRepository usuarioRepository;
     private final TokenDispositivoRepository tokenDispositivoRepository;
+    private final RegistroRepository registroRepository;
     private final GeocodingService geocodingService;
 
     public GeolocalizacionService(
             SolicitudUbicacionRepository solicitudRepository,
             UsuarioRepository usuarioRepository,
             TokenDispositivoRepository tokenDispositivoRepository,
+            RegistroRepository registroRepository,
             GeocodingService geocodingService) {
         this.solicitudRepository = solicitudRepository;
         this.usuarioRepository = usuarioRepository;
         this.tokenDispositivoRepository = tokenDispositivoRepository;
+        this.registroRepository = registroRepository;
         this.geocodingService = geocodingService;
     }
 
@@ -63,6 +67,13 @@ public class GeolocalizacionService {
         // Validar que no sea el mismo usuario
         if (admin.getId().equals(empleadoId)) {
             throw new RuntimeException("No puedes solicitar tu propia ubicación");
+        }
+
+        // Validar que el empleado esté en turno (con entrada registrada y sin salida)
+        boolean enTurno = registroRepository.findUltimoRegistroSinSalida(empleado).isPresent();
+        if (!enTurno) {
+            throw new RuntimeException("El empleado " + empleado.getNombre()
+                    + " no está en turno. Solo puedes geolocalizar empleados con entrada registrada y sin salida.");
         }
 
         // Crear la solicitud
@@ -345,5 +356,80 @@ public class GeolocalizacionService {
         }
 
         return expiradas.size();
+    }
+
+    // ============================
+    // 🗑️ LIMPIEZA Y ELIMINACIÓN
+    // ============================
+
+    /**
+     * Elimina geolocalizaciones de un mes y año específico
+     */
+    @Transactional
+    public long eliminarPorMesYAnio(int mes, int anio) {
+        long cantidad = solicitudRepository.countByMesYAnio(mes, anio);
+        if (cantidad > 0) {
+            solicitudRepository.deleteByMesYAnio(mes, anio);
+            logger.info("🗑️ Eliminadas {} geolocalizaciones del mes {}/{}", cantidad, mes, anio);
+        }
+        return cantidad;
+    }
+
+    /**
+     * Obtiene información sobre la próxima limpieza automática de geolocalizaciones
+     */
+    public java.util.Map<String, Object> obtenerInfoLimpieza() {
+        java.time.LocalDate hoy = java.time.LocalDate.now();
+
+        // El primer día del próximo mes es cuando se ejecuta la eliminación
+        java.time.LocalDate fechaEliminacion = hoy.withDayOfMonth(1).plusMonths(1);
+
+        // El mes que será eliminado es 2 meses antes de la fecha de eliminación
+        java.time.LocalDate mesAEliminar = fechaEliminacion.minusMonths(2);
+        int mes = mesAEliminar.getMonthValue();
+        int anio = mesAEliminar.getYear();
+
+        // Contar geolocalizaciones que serán eliminadas
+        long cantidad = solicitudRepository.countByMesYAnio(mes, anio);
+
+        // Si no hay geolocalizaciones del mes antiguo, no hay advertencia
+        if (cantidad == 0) {
+            return java.util.Map.of(
+                    "hayAdvertencia", false,
+                    "mensaje", "No hay geolocalizaciones programadas para eliminación automática.",
+                    "cantidadRegistros", 0L,
+                    "puedeExportar", false);
+        }
+
+        // Calcular días restantes
+        long diasRestantes = java.time.temporal.ChronoUnit.DAYS.between(hoy, fechaEliminacion);
+
+        String nombreMes = java.time.Month.of(mes)
+                .getDisplayName(java.time.format.TextStyle.FULL, new java.util.Locale("es", "ES"))
+                .toUpperCase();
+
+        boolean hayAdvertencia = diasRestantes <= 4;
+
+        String mensaje;
+        if (hayAdvertencia) {
+            mensaje = "⚠️ Se eliminarán automáticamente " + cantidad + " geolocalizaciones del Mes: " + nombreMes + " "
+                    + anio +
+                    " en " + diasRestantes + " día(s). Por favor exporte las geolocalizaciones de ese mes.";
+        } else {
+            mensaje = "Las geolocalizaciones del mes de " + nombreMes + " " + anio +
+                    " serán eliminadas el "
+                    + fechaEliminacion.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")) +
+                    ". Tiene " + diasRestantes + " días para exportarlas.";
+        }
+
+        return java.util.Map.of(
+                "hayAdvertencia", hayAdvertencia,
+                "mensaje", mensaje,
+                "mesAEliminar", nombreMes,
+                "anioAEliminar", anio,
+                "diasRestantes", diasRestantes,
+                "fechaEliminacion", fechaEliminacion.toString(),
+                "cantidadRegistros", cantidad,
+                "puedeExportar", true);
     }
 }
