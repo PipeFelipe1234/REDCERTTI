@@ -290,6 +290,8 @@ public class AdminController {
 
     /**
      * Exportar historial de geolocalizaciones a Excel con filtros
+     * Body: {"mes": 3} para marzo del año actual
+     * Body: {"mes": 3, "anio": 2026} para marzo 2026
      */
     @PostMapping("/geolocalizaciones/exportar/excel")
     public ResponseEntity<byte[]> exportarGeolocalizacionesExcel(
@@ -298,7 +300,16 @@ public class AdminController {
             logger.info("📊 Exportando geolocalizaciones a Excel");
             byte[] excelBytes = geoExportService.exportarExcel(filtros);
 
-            String filename = "geolocalizaciones_" + LocalDate.now() + ".xlsx";
+            // Generar nombre de archivo según filtros
+            String filename;
+            if (filtros != null && filtros.mes() != null) {
+                int mes = filtros.mes();
+                int anio = filtros.anio() != null ? filtros.anio() : LocalDate.now().getYear();
+                String nombreMes = geoExportService.getNombreMes(mes);
+                filename = "geolocalizaciones_" + nombreMes + "_" + anio + ".xlsx";
+            } else {
+                filename = "geolocalizaciones_" + LocalDate.now() + ".xlsx";
+            }
 
             return ResponseEntity.ok()
                     .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename)
@@ -313,6 +324,8 @@ public class AdminController {
 
     /**
      * Exportar historial de geolocalizaciones a PDF con filtros
+     * Body: {"mes": 3} para marzo del año actual
+     * Body: {"mes": 3, "anio": 2026} para marzo 2026
      */
     @PostMapping("/geolocalizaciones/exportar/pdf")
     public ResponseEntity<byte[]> exportarGeolocalizacionesPdf(
@@ -321,54 +334,16 @@ public class AdminController {
             logger.info("📄 Exportando geolocalizaciones a PDF");
             byte[] pdfBytes = geoExportService.exportarPdf(filtros);
 
-            String filename = "geolocalizaciones_" + LocalDate.now() + ".pdf";
-
-            return ResponseEntity.ok()
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename)
-                    .contentType(MediaType.APPLICATION_PDF)
-                    .body(pdfBytes);
-        } catch (Exception e) {
-            logger.error("Error exportando geolocalizaciones a PDF: {}", e.getMessage());
-            return ResponseEntity.internalServerError().build();
-        }
-    }
-
-    /**
-     * Exportar geolocalizaciones de un mes específico a Excel
-     */
-    @GetMapping("/geolocalizaciones/exportar/excel/{mes}/{anio}")
-    public ResponseEntity<byte[]> exportarGeolocalizacionesMesExcel(
-            @PathVariable int mes, @PathVariable int anio) {
-        try {
-            logger.info("📊 Exportando geolocalizaciones de {}/{} a Excel", mes, anio);
-            byte[] excelBytes = geoExportService.exportarExcelPorMes(mes, anio);
-
-            String nombreMes = geoExportService.getNombreMes(mes);
-            String filename = "geolocalizaciones_" + nombreMes + "_" + anio + ".xlsx";
-
-            return ResponseEntity.ok()
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename)
-                    .contentType(MediaType
-                            .parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
-                    .body(excelBytes);
-        } catch (Exception e) {
-            logger.error("Error exportando geolocalizaciones a Excel: {}", e.getMessage());
-            return ResponseEntity.internalServerError().build();
-        }
-    }
-
-    /**
-     * Exportar geolocalizaciones de un mes específico a PDF
-     */
-    @GetMapping("/geolocalizaciones/exportar/pdf/{mes}/{anio}")
-    public ResponseEntity<byte[]> exportarGeolocalizacionesMesPdf(
-            @PathVariable int mes, @PathVariable int anio) {
-        try {
-            logger.info("📄 Exportando geolocalizaciones de {}/{} a PDF", mes, anio);
-            byte[] pdfBytes = geoExportService.exportarPdfPorMes(mes, anio);
-
-            String nombreMes = geoExportService.getNombreMes(mes);
-            String filename = "geolocalizaciones_" + nombreMes + "_" + anio + ".pdf";
+            // Generar nombre de archivo según filtros
+            String filename;
+            if (filtros != null && filtros.mes() != null) {
+                int mes = filtros.mes();
+                int anio = filtros.anio() != null ? filtros.anio() : LocalDate.now().getYear();
+                String nombreMes = geoExportService.getNombreMes(mes);
+                filename = "geolocalizaciones_" + nombreMes + "_" + anio + ".pdf";
+            } else {
+                filename = "geolocalizaciones_" + LocalDate.now() + ".pdf";
+            }
 
             return ResponseEntity.ok()
                     .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename)

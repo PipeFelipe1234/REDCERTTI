@@ -96,9 +96,20 @@ public class GeolocalizacionExportService {
     }
 
     /**
-     * Obtiene las solicitudes filtradas según los criterios
+     * Obtiene las solicitudes filtradas según los criterios.
+     * Si se especifica 'mes', filtra por ese mes (y año si se especifica, sino año
+     * actual).
+     * Si no se especifica 'mes', usa los filtros de fechaInicio/fechaFin.
      */
     private List<SolicitudUbicacion> obtenerSolicitudesFiltradas(GeolocalizacionExportRequest filtros) {
+        // Si se especifica mes, usar el repositorio directo para filtrar por mes
+        if (filtros != null && filtros.mes() != null) {
+            int mes = filtros.mes();
+            int anio = filtros.anio() != null ? filtros.anio() : LocalDate.now().getYear();
+            return solicitudRepository.findByMesYAnio(mes, anio);
+        }
+
+        // Si no hay filtro de mes, obtener todas y filtrar en memoria
         List<SolicitudUbicacion> todas = solicitudRepository.findAllByOrderByFechaSolicitudDesc();
 
         return todas.stream()
@@ -148,10 +159,22 @@ public class GeolocalizacionExportService {
 
     /**
      * Exporta el historial de geolocalizaciones a PDF
+     * Si filtros contiene 'mes', exporta solo ese mes
      */
     public byte[] exportarPdf(GeolocalizacionExportRequest filtros) throws Exception {
         List<SolicitudUbicacion> solicitudes = obtenerSolicitudesFiltradas(filtros);
-        return generarPdf(solicitudes, "Historial de Geolocalizaciones");
+
+        // Generar título según el tipo de filtro
+        String titulo;
+        if (filtros != null && filtros.mes() != null) {
+            int mes = filtros.mes();
+            int anio = filtros.anio() != null ? filtros.anio() : LocalDate.now().getYear();
+            titulo = "Geolocalizaciones - " + getNombreMes(mes) + " " + anio;
+        } else {
+            titulo = "Historial de Geolocalizaciones";
+        }
+
+        return generarPdf(solicitudes, titulo);
     }
 
     /**
@@ -274,10 +297,22 @@ public class GeolocalizacionExportService {
 
     /**
      * Exporta el historial de geolocalizaciones a Excel
+     * Si filtros contiene 'mes', exporta solo ese mes
      */
     public byte[] exportarExcel(GeolocalizacionExportRequest filtros) throws Exception {
         List<SolicitudUbicacion> solicitudes = obtenerSolicitudesFiltradas(filtros);
-        return generarExcel(solicitudes, "Historial de Geolocalizaciones");
+
+        // Generar título según el tipo de filtro
+        String titulo;
+        if (filtros != null && filtros.mes() != null) {
+            int mes = filtros.mes();
+            int anio = filtros.anio() != null ? filtros.anio() : LocalDate.now().getYear();
+            titulo = "Geolocalizaciones - " + getNombreMes(mes) + " " + anio;
+        } else {
+            titulo = "Historial de Geolocalizaciones";
+        }
+
+        return generarExcel(solicitudes, titulo);
     }
 
     /**
