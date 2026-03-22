@@ -2,6 +2,7 @@ package com.practica.backend.service;
 
 import com.practica.backend.dto.CleanupInfoResponse;
 import com.practica.backend.repository.RegistroRepository;
+import com.practica.backend.repository.SolicitudUbicacionRepository;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -12,7 +13,8 @@ import java.time.temporal.ChronoUnit;
 import java.util.Locale;
 
 /**
- * Servicio que maneja la limpieza automática de registros antiguos.
+ * Servicio que maneja la limpieza automática de registros y geolocalizaciones
+ * antiguos.
  * 
  * REGLA: Después de 2 meses, se elimina automáticamente el mes más antiguo.
  * Ejemplo: Si estamos en Abril, se eliminan los registros de Febrero.
@@ -24,6 +26,7 @@ import java.util.Locale;
 public class ScheduledCleanupService {
 
     private final RegistroRepository registroRepository;
+    private final SolicitudUbicacionRepository solicitudRepository;
     private final NotificacionService notificacionService;
     private static final Locale LOCALE_ES = new Locale("es", "ES");
 
@@ -32,14 +35,16 @@ public class ScheduledCleanupService {
 
     public ScheduledCleanupService(
             RegistroRepository registroRepository,
+            SolicitudUbicacionRepository solicitudRepository,
             NotificacionService notificacionService) {
         this.registroRepository = registroRepository;
+        this.solicitudRepository = solicitudRepository;
         this.notificacionService = notificacionService;
     }
 
     /**
      * Tarea programada que se ejecuta todos los días a las 00:05 AM
-     * Verifica si hay registros que deben ser eliminados
+     * Verifica si hay registros y geolocalizaciones que deben ser eliminados
      */
     @Scheduled(cron = "0 5 0 * * *") // Todos los días a las 00:05
     public void ejecutarLimpiezaAutomatica() {
@@ -50,23 +55,45 @@ public class ScheduledCleanupService {
         int mes = mesAEliminar.getMonthValue();
         int anio = mesAEliminar.getYear();
 
-        // Verificar si hay registros de ese mes
+        // Solo ejecutar el primer día del mes
+        if (hoy.getDayOfMonth() != 1) {
+            return;
+        }
+
+        String nombreMes = getNombreMes(mes);
+        StringBuilder mensajeNotificacion = new StringBuilder();
+        boolean hayEliminaciones = false;
+
+        // Verificar y eliminar registros de asistencia
         long cantidadRegistros = registroRepository.countByMesYAnio(mes, anio);
-
         if (cantidadRegistros > 0) {
-            // Calcular si estamos en el primer día del mes actual (día de eliminación)
-            if (hoy.getDayOfMonth() == 1) {
-                // Ejecutar eliminación
-                int eliminados = registroRepository.deleteByMesYAnio(mes, anio);
+            int eliminadosRegistros = registroRepository.deleteByMesYAnio(mes, anio);
+            mensajeNotificacion.append("Se eliminaron ").append(eliminadosRegistros)
+                    .append(" registros de asistencia");
+            hayEliminaciones = true;
+        }
 
-                String nombreMes = getNombreMes(mes);
-
-                // Enviar notificación a todos
-                notificacionService.enviarNotificacionATodos(
-                        "Limpieza automática completada",
-                        "Se han eliminado " + eliminados + " registros del mes de " + nombreMes + " " + anio +
-                                ". Recuerde exportar sus registros antes de que sean eliminados.");
+        // Verificar y eliminar geolocalizaciones
+        long cantidadGeolocalizaciones = solicitudRepository.countByMesYAnio(mes, anio);
+        if (cantidadGeolocalizaciones > 0) {
+            int eliminadosGeo = solicitudRepository.deleteByMesYAnio(mes, anio);
+            if (hayEliminaciones) {
+                mensajeNotificacion.append(" y ");
+            } else {
+                mensajeNotificacion.append("Se eliminaron ");
             }
+            mensajeNotificacion.append(eliminadosGeo).append(" geolocalizaciones");
+            hayEliminaciones = true;
+        }
+
+        // Enviar notificación si hubo eliminaciones
+        if (hayEliminaciones) {
+            mensajeNotificacion.append(" del mes de ").append(nombreMes).append(" ").append(anio)
+                    .append(". Recuerde exportar sus datos antes de que sean eliminados.");
+
+            notificacionService.enviarNotificacionATodos(
+                    "Limpieza automática completada",
+                    mensajeNotificacion.toString());
         }
     }
 

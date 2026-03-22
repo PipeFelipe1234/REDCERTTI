@@ -23,11 +23,14 @@ public class RegistroService {
 
     private final RegistroRepository registroRepository;
     private final NotificacionService notificacionService;
+    private final GeocodingService geocodingService;
     private static final DateTimeFormatter ISO_FORMATTER = DateTimeFormatter.ISO_DATE_TIME;
 
-    public RegistroService(RegistroRepository registroRepository, NotificacionService notificacionService) {
+    public RegistroService(RegistroRepository registroRepository, NotificacionService notificacionService,
+            GeocodingService geocodingService) {
         this.registroRepository = registroRepository;
         this.notificacionService = notificacionService;
+        this.geocodingService = geocodingService;
     }
 
     /**
@@ -70,7 +73,16 @@ public class RegistroService {
         registro.setLatitudCheckin(request.latitudCheckin());
         registro.setLongitudCheckin(request.longitudCheckin());
         registro.setPrecisionMetrosCheckin(request.precisionMetrosCheckin());
-        registro.setUbicacionEntrada(request.ubicacionEntrada());
+
+        // 📍 Reverse geocoding: si el frontend envía ubicación la usamos, si no,
+        // llamamos a Google API
+        String ubicacionEntrada = request.ubicacionEntrada();
+        if (ubicacionEntrada == null || ubicacionEntrada.trim().isEmpty()) {
+            ubicacionEntrada = geocodingService.obtenerDireccion(
+                    request.latitudCheckin(),
+                    request.longitudCheckin());
+        }
+        registro.setUbicacionEntrada(ubicacionEntrada);
 
         Registro guardado = registroRepository.save(registro);
 
@@ -111,7 +123,16 @@ public class RegistroService {
         registro.setPrecisionMetros(request.precisionMetros());
         registro.setReporte(request.reporte());
         registro.setPicture(request.picture());
-        registro.setUbicacionSalida(request.ubicacionSalida());
+
+        // 📍 Reverse geocoding: si el frontend envía ubicación la usamos, si no,
+        // llamamos a Google API
+        String ubicacionSalida = request.ubicacionSalida();
+        if (ubicacionSalida == null || ubicacionSalida.trim().isEmpty()) {
+            ubicacionSalida = geocodingService.obtenerDireccion(
+                    request.latitud(),
+                    request.longitud());
+        }
+        registro.setUbicacionSalida(ubicacionSalida);
 
         // ⏱️ Calcular horas trabajadas considerando que pueden ser días diferentes
         LocalDateTime fechaHoraEntrada = LocalDateTime.of(registro.getFecha(), registro.getHoraEntrada());
