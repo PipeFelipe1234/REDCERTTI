@@ -2,6 +2,7 @@ package com.practica.backend.entity;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 @Entity
 @Table(name = "solicitudes_ubicacion")
@@ -41,10 +42,13 @@ public class SolicitudUbicacion {
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
+    // Zona horaria de Colombia
+    private static final ZoneId ZONA_COLOMBIA = ZoneId.of("America/Bogota");
+
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        fechaSolicitud = LocalDateTime.now();
+        createdAt = LocalDateTime.now(ZONA_COLOMBIA);
+        fechaSolicitud = LocalDateTime.now(ZONA_COLOMBIA);
         if (estado == null) {
             estado = "PENDIENTE";
         }

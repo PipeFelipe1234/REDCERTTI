@@ -23,10 +23,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 
 @Service
 public class GeolocalizacionService {
+
+    // Zona horaria de Colombia
+    private static final ZoneId ZONA_COLOMBIA = ZoneId.of("America/Bogota");
 
     private static final Logger logger = LoggerFactory.getLogger(GeolocalizacionService.class);
     private static final int SEGUNDOS_EXPIRACION = 90; // 90 segundos para expiración
@@ -113,7 +117,7 @@ public class GeolocalizacionService {
             throw new RuntimeException("Esta solicitud ya fue respondida o expiró");
         }
 
-        solicitud.setFechaRespuesta(LocalDateTime.now());
+        solicitud.setFechaRespuesta(LocalDateTime.now(ZONA_COLOMBIA));
 
         // Verificar si es una respuesta con error (GPS desactivado, permiso denegado,
         // etc.)
@@ -333,12 +337,12 @@ public class GeolocalizacionService {
      */
     @Transactional
     public int expirarSolicitudesAntiguas() {
-        LocalDateTime fechaLimite = LocalDateTime.now().minusSeconds(SEGUNDOS_EXPIRACION);
+        LocalDateTime fechaLimite = LocalDateTime.now(ZONA_COLOMBIA).minusSeconds(SEGUNDOS_EXPIRACION);
         List<SolicitudUbicacion> expiradas = solicitudRepository.findSolicitudesExpiradas(fechaLimite);
 
         for (SolicitudUbicacion solicitud : expiradas) {
             solicitud.setEstado("EXPIRADA");
-            solicitud.setFechaRespuesta(LocalDateTime.now());
+            solicitud.setFechaRespuesta(LocalDateTime.now(ZONA_COLOMBIA));
             solicitudRepository.save(solicitud);
 
             // Notificar al admin que expiró
